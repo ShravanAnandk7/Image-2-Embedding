@@ -1,8 +1,8 @@
 """
-Implementation of Contrastive Loss
-
+Implementation of Contrastive Loss.
+Users are free to copy and distribute only with citation.
+https://github.com/ShravanAnandk7/Keras-Image-Embeddings-using-Contrastive-Loss
 Last updated 09 Jan 2022
-Developed by Shravan
 TODO: 1) Add cosine distance metric
       2) Add Batch-Hard and Semi-Hard triplet generation
 """
@@ -28,8 +28,8 @@ os.chdir(BASE_DIR)
 # PARAMTERS
 MODEL_DIR       =  os.path.join(BASE_DIR,"models")
 DATASET_DIR     =  os.path.join(BASE_DIR,"datasets")
-BATCH_SIZE      =  1
-NUM_EPOCHS      =  1
+BATCH_SIZE      =  10
+NUM_EPOCHS      =  10
 INPUT_SHAPE     =  299
 EMBEDDING_SIZE  =  32
 LOSS_MARGIN     =  0.4
@@ -102,7 +102,7 @@ class FewShotTripletDataGen(KU.Sequence):
         # print("batch Indices : ", batch_indexes)
         for row_id in batch_indexes:
             anchor, positive = [os.path.join(self.dataframe.loc[self.triplets[row_id][0]]["folder path"],i) for i in random.sample(self.dataframe.loc[self.triplets[row_id][0]]["images"],2)]
-            # anchor = os.path.join(self.dataframe.loc[self.triplets[row_id][0]]["folder path"],random.choice(self.dataframe.loc[self.triplets[row_id][0]]["images"]))
+            # # anchor = os.path.join(self.dataframe.loc[self.triplets[row_id][0]]["folder path"],random.choice(self.dataframe.loc[self.triplets[row_id][0]]["images"]))
             # positive = os.path.join(self.dataframe.loc[self.triplets[row_id][0]]["folder path"],random.choice(self.dataframe.loc[self.triplets[row_id][0]]["images"]))
             negative = os.path.join(self.dataframe.loc[self.triplets[row_id][1]]["folder path"],random.choice(self.dataframe.loc[self.triplets[row_id][1]]["images"]))
             # print(anchor,'\n',positive,'\n',negative)
@@ -185,7 +185,9 @@ def base_network():
                     KL.Lambda(lambda x: K.l2_normalize(x,axis=-1))
                 ]))
 base = base_network()
-# print(base.summary())
+# Pptional to load weights from trained model
+base.load_weights(os.path.join(BASE_DIR, "models","few-shot.h5"))
+print(base.summary())
 def triplet_network(base):
     Anchor   = KL.Input(shape=(INPUT_SHAPE,INPUT_SHAPE,3),name= "anchor_input")
     Positive = KL.Input(shape=(INPUT_SHAPE,INPUT_SHAPE,3),name= "positive_input")
@@ -212,11 +214,13 @@ valid_gen = FewShotTripletDataGen(path = os.path.join(
              DATASET_DIR,"few-shot-dataset","test"),
              image_dim=(INPUT_SHAPE,INPUT_SHAPE), 
              batch_size=BATCH_SIZE)
-# triplet_model.fit(x=train_gen,
-#                   batch_size=BATCH_SIZE,
-#                   validation_data=valid_gen,
-#                   epochs=NUM_EPOCHS,
-#                   workers=1)
+triplet_model.fit(x=train_gen,
+                  batch_size=BATCH_SIZE,
+                  validation_data=valid_gen,
+                  epochs=NUM_EPOCHS,
+                  workers=1)
+# Save trained model weights
+base.save_weights(os.path.join(BASE_DIR, "models","few-shot.h5"))
 #%% Prediction with trained base model
 image_path = os.path.join(
              DATASET_DIR,"few-shot-dataset","test","cat","0013.jpg")
