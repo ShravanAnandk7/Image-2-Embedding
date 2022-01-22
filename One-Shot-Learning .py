@@ -52,22 +52,18 @@ AUGMENTATION      = arg.Sequential(
                                             ]),
                                 arg.Sometimes(0.2,arg.GaussianBlur(sigma = (0.0, 1.5)),name="3a1_gaussian_blur_0.2")
                             ]
-                            )
-class FewShotTripletDataGen(KU.Sequence):
+                            )# One shot triplet uses augmentation between anchor and positive
+class OneShotTripletDataGen(KU.Sequence):
     def __init__(self,path,image_dim, batch_size = 1, shuffle = True,
                  augmenter = None):
-        self.image_dim  = image_dim
-        self.batch_size = batch_size
-        self.shuffle    = shuffle
-        self.augmenter  = augmenter
-         
-        categories = os.listdir(path)
-        folder_paths = list(map(partial(os.path.join,path),categories))
-        images = list(map(os.listdir, folder_paths))
+        self.image_dim   = image_dim
+        self.batch_size  = batch_size
+        self.shuffle     = shuffle
+        self.augmenter   = augmenter
+        self.images_path = path 
+        images = os.listdir(self.images_path)
         self.dataframe = pd.DataFrame(
-            {
-                "categories" :categories,
-                "folder path" : folder_paths,
+            {   
                 "images": images
             })
         print("Categories found",self.dataframe.__len__())
@@ -102,16 +98,14 @@ class FewShotTripletDataGen(KU.Sequence):
         negative_list = []
         # print("batch Indices : ", batch_indexes)
         for row_id in batch_indexes:
-            anchor, positive = [os.path.join(self.dataframe.loc[self.triplets[row_id][0]]["folder path"],i) for i in random.sample(self.dataframe.loc[self.triplets[row_id][0]]["images"],2)]
-            # # anchor = os.path.join(self.dataframe.loc[self.triplets[row_id][0]]["folder path"],random.choice(self.dataframe.loc[self.triplets[row_id][0]]["images"]))
-            # positive = os.path.join(self.dataframe.loc[self.triplets[row_id][0]]["folder path"],random.choice(self.dataframe.loc[self.triplets[row_id][0]]["images"]))
-            negative = os.path.join(self.dataframe.loc[self.triplets[row_id][1]]["folder path"],random.choice(self.dataframe.loc[self.triplets[row_id][1]]["images"]))
-            # print(anchor,'\n',positive,'\n',negative)
+            anchor = os.path.join(self.images_path,self.dataframe.loc[self.triplets[row_id][0]]["images"])
+            positive = anchor
+            negative = os.path.join(self.images_path,self.dataframe.loc[self.triplets[row_id][1]]["images"])
 
             anchor = self.pre_process(self.__augmenter(cv2.imread(anchor)))
             positive = self.pre_process(self.__augmenter(cv2.imread(positive)))
             negative = self.pre_process(self.__augmenter(cv2.imread(negative)))
-            # # print(anchor.shape, positive.shape, negative.shape)
+            # print(anchor.shape, positive.shape, negative.shape)
             anchor_list.append(anchor)
             positive_list.append(positive)
             negative_list.append(negative)
@@ -187,7 +181,7 @@ def base_network():
                 ]))
 base = base_network()
 # Pptional to load weights from trained model
-base.load_weights(os.path.join(BASE_DIR, "models","few-shot.h5"))
+# base.load_weights(os.path.join(BASE_DIR, "models","one-shot.h5"))
 print(base.summary())
 def triplet_network(base):
     Anchor   = KL.Input(shape=(INPUT_SHAPE,INPUT_SHAPE,3),name= "anchor_input")
@@ -206,14 +200,14 @@ triplet_model = triplet_network(base)
 optimizer = KO.Adam(lr = 0.001)
 triplet_model.compile(loss=None,optimizer=optimizer)
 print("Train Data :")
-train_gen = FewShotTripletDataGen(path = os.path.join(
-             DATASET_DIR,"few-shot-dataset","train"),
+train_gen = OneShotTripletDataGen(path = os.path.join(
+             DATASET_DIR,"one-shot-dataset","train"),
              image_dim=(INPUT_SHAPE,INPUT_SHAPE), 
              batch_size=BATCH_SIZE,augmenter=AUGMENTATION)
 print("Test Data :")
 
-valid_gen = FewShotTripletDataGen(path = os.path.join(
-             DATASET_DIR,"few-shot-dataset","test"),
+valid_gen = OneShotTripletDataGen(path = os.path.join(
+             DATASET_DIR,"one-shot-dataset","test"),
              image_dim=(INPUT_SHAPE,INPUT_SHAPE), 
              batch_size=BATCH_SIZE)
 triplet_model.fit(x=train_gen,
@@ -222,10 +216,10 @@ triplet_model.fit(x=train_gen,
                   epochs=NUM_EPOCHS,
                   workers=1)
 # Save trained model weights
-base.save_weights(os.path.join(BASE_DIR, "models","few-shot.h5"))
+base.save_weights(os.path.join(BASE_DIR, "models","one-shot.h5"))
 #%% Prediction with trained base model
 image_path = os.path.join(
-             DATASET_DIR,"few-shot-dataset","test","cat","0013.jpg")
+             DATASET_DIR,"one-shot-dataset","test","cat.jpg")
 print(image_path)
 input = train_gen.pre_process(cv2.imread(image_path))
 output_embeddings = base.predict(np.expand_dims(input,axis=0))
