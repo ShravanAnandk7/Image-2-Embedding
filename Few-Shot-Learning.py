@@ -29,12 +29,13 @@ os.chdir(BASE_DIR)
 MODEL_DIR       =  os.path.join(BASE_DIR,"models")
 DATASET_DIR     =  os.path.join(BASE_DIR,"datasets")
 BATCH_SIZE      =  1
-NUM_EPOCHS      =  10
+NUM_EPOCHS      =  1
 INPUT_SHAPE     =  299
 EMBEDDING_SIZE  =  32
 LOSS_MARGIN     =  0.4
 HUBER_DELTA     =  0.5
-# Edit the type of augmentation required specific for your data here
+# Edit the type of augmentation required specific 
+# for your data here
 AUGMENTATION      = arg.Sequential(
 
                             [       
@@ -51,7 +52,7 @@ AUGMENTATION      = arg.Sequential(
                                 arg.Sometimes(0.2,arg.GaussianBlur(sigma = (0.0, 1.5)),name="3a1_gaussian_blur_0.2")
                             ]
                             )
-class FewShotDataGen(KU.Sequence):
+class FewShotTripletDataGen(KU.Sequence):
     def __init__(self,path,image_dim, batch_size = 1, shuffle = True,
                  augmenter = None):
         self.image_dim  = image_dim
@@ -106,16 +107,16 @@ class FewShotDataGen(KU.Sequence):
             negative = os.path.join(self.dataframe.loc[self.triplets[row_id][1]]["folder path"],random.choice(self.dataframe.loc[self.triplets[row_id][1]]["images"]))
             # print(anchor,'\n',positive,'\n',negative)
 
-            anchor = self.__pre_process(self.__augmenter(cv2.imread(anchor)))
-            positive = self.__pre_process(self.__augmenter(cv2.imread(positive)))
-            negative = self.__pre_process(self.__augmenter(cv2.imread(negative)))
+            anchor = self.pre_process(self.__augmenter(cv2.imread(anchor)))
+            positive = self.pre_process(self.__augmenter(cv2.imread(positive)))
+            negative = self.pre_process(self.__augmenter(cv2.imread(negative)))
             # # print(anchor.shape, positive.shape, negative.shape)
             anchor_list.append(anchor)
             positive_list.append(positive)
             negative_list.append(negative)
         return (np.asarray(anchor_list),np.asarray(positive_list),np.array(negative_list)), None
     
-    def __pre_process(self,image):
+    def pre_process(self,image):
         """ 
         Model specific image preprocessing function
         TODO: Resize with crop and padding
@@ -151,7 +152,6 @@ class TripletLossLayer(KL.Layer):
         anchor, positive, negative = inputs
         p_dist = self.euclidean_distance(anchor[0],positive[0])
         n_dist = self.euclidean_distance(anchor[0],negative[0])
-        print(p_dist, n_dist)
         t_loss  = K.maximum(p_dist - n_dist + self.margin, 0)
         # Huber loss
         L1_loss = K.switch(t_loss < self.huber_delta, 0.5 * t_loss ** 2, self.huber_delta * (t_loss - 0.5 * self.huber_delta))
@@ -159,8 +159,7 @@ class TripletLossLayer(KL.Layer):
     def call(self, inputs):
         loss = self.triplet_loss(inputs)
         self.add_loss(loss)
-#%%
-
+#%% Build network model
 def base_network():
     """
     Base CNN model trained for embedding extraction
@@ -168,7 +167,7 @@ def base_network():
     return( 
             KM.Sequential(
                 [   
-                    KL.Input(shape=(None,None,None)),
+                    KL.Input(shape=(INPUT_SHAPE,INPUT_SHAPE,3)),
                     KL.Conv2D(8,(3,3)),
                     KL.ReLU(),
                     KL.MaxPool2D(pool_size=(1,2)),
@@ -186,7 +185,7 @@ def base_network():
                     KL.Lambda(lambda x: K.l2_normalize(x,axis=-1))
                 ]))
 base = base_network()
-print(base.summary())
+# print(base.summary())
 def triplet_network(base):
     Anchor   = KL.Input(shape=(INPUT_SHAPE,INPUT_SHAPE,3),name= "anchor_input")
     Positive = KL.Input(shape=(INPUT_SHAPE,INPUT_SHAPE,3),name= "positive_input")
@@ -195,24 +194,33 @@ def triplet_network(base):
     Anchor_Emb = base(Anchor)
     Positive_Emb = base(Positive)
     Negative_Emb = base(Negative)
-
+    
     loss = TripletLossLayer(LOSS_MARGIN,HUBER_DELTA)([Anchor_Emb,Positive_Emb,Negative_Emb])
     model = KM.Model(inputs = [Anchor,Positive,Negative], outputs=loss)
     return model
-#%%
+#%% Train Model
 triplet_model = triplet_network(base)
 optimizer = KO.Adam(lr = 0.001)
 triplet_model.compile(loss=None,optimizer=optimizer)
-train_gen = FewShotDataGen(path = os.path.join(DATASET_DIR,"few-shot-dataset","train"),image_dim=(INPUT_SHAPE,INPUT_SHAPE), batch_size=BATCH_SIZE,augmenter=AUGMENTATION)
-valid_gen = FewShotDataGen(path = os.path.join(DATASET_DIR,"few-shot-dataset","test"),image_dim=(INPUT_SHAPE,INPUT_SHAPE), batch_size=BATCH_SIZE)
-#%%
-triplet_model.fit(x=train_gen,
-                  batch_size=BATCH_SIZE,
-                  validation_data=valid_gen,
-                  epochs=NUM_EPOCHS,
-                  workers=1)
-#%%
-# print(base.predict([np.random.random(size = (1,INPUT_SHAPE,INPUT_SHAPE,3))]))
-# triplet_model.summary()
-# plot_model(triplet_model,show_shapes=True, show_layer_names=True, to_file='shravan triplet model.png')
-# print(network_train.metrics_names)
+print("Train Data :")
+train_gen = FewShotTripletDataGen(path = os.path.join(
+             DATASET_DIR,"few-shot-dataset","train"),
+             image_dim=(INPUT_SHAPE,INPUT_SHAPE), 
+             batch_size=BATCH_SIZE,augmenter=AUGMENTATION)
+print("Test Data :")
+valid_gen = FewShotTripletDataGen(path = os.path.join(
+             DATASET_DIR,"few-shot-dataset","test"),
+             image_dim=(INPUT_SHAPE,INPUT_SHAPE), 
+             batch_size=BATCH_SIZE)
+# triplet_model.fit(x=train_gen,
+#                   batch_size=BATCH_SIZE,
+#                   validation_data=valid_gen,
+#                   epochs=NUM_EPOCHS,
+#                   workers=1)
+#%% Prediction with trained base model
+image_path = os.path.join(
+             DATASET_DIR,"few-shot-dataset","test","cat","0013.jpg")
+print(image_path)
+input = train_gen.pre_process(cv2.imread(image_path))
+output_embeddings = base.predict(np.expand_dims(input,axis=0))
+print(output_embeddings)
