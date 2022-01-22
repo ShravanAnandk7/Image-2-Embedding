@@ -1,4 +1,4 @@
-# Keras-Image-Embeddings-using-Triplet-Loss
+# Keras-Image-Embeddings-using-Contrastive-Loss
 Image to Embedding projection in vector space.
 Implementation in keras and tensorflow  for custom data.
 Batch all triplet loss for one-shot/few-shot learning.
