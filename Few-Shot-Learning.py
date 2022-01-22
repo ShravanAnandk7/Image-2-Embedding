@@ -3,7 +3,8 @@ Implementation of Contrastive Loss
 
 Last updated 09 Jan 2022
 Developed by Shravan
-TODO: Add cosine distance metric
+TODO: 1) Add cosine distance metric
+      2) Add Batch-Hard and Semi-Hard triplet generation
 """
 #%%
 import os
