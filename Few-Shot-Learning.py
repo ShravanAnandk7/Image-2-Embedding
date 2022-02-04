@@ -30,7 +30,7 @@ os.chdir(BASE_DIR)
 MODEL_DIR       =  os.path.join(BASE_DIR,"models")
 DATASET_DIR     =  os.path.join(BASE_DIR,"datasets")
 BATCH_SIZE      =  10
-NUM_EPOCHS      =  10
+NUM_EPOCHS      =  1
 INPUT_SHAPE     =  299
 EMBEDDING_SIZE  =  32
 LOSS_MARGIN     =  0.4
@@ -183,10 +183,10 @@ def base_network():
                     KL.GlobalAveragePooling2D(),
                     # Don't Change the below layers
                     KL.Dense(EMBEDDING_SIZE,activation = 'relu'),
-                    KL.Lambda(lambda x: K.l2_normalize(x,axis=-1))
+                    # KL.Lambda(lambda x: K.l2_normalize(x,axis=-1))
                 ]))
 base = base_network()
-# Pptional to load weights from trained model
+# Optional to load weights from trained model
 base.load_weights(os.path.join(BASE_DIR, "models","few-shot.h5"))
 print(base.summary())
 def triplet_network(base):
