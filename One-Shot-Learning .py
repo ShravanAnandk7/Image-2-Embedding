@@ -42,7 +42,7 @@ AUGMENTATION      = arg.Sequential(
                             [       
                                 arg.OneOf([arg.Fliplr(0.5), arg.Flipud(0.5)]),
                                 arg.Affine(scale = (0.85, 1.05),name="scale"),
-                                arg.Rotate(rotate = (-180,180),name = "1a2_rotate_1"),
+                                arg.Rotate(rotate = (-10,10),name = "1a2_rotate_1"),
                                 arg.TranslateX(percent = (-0.05, 0.05), name= "1a3_translatex_1"),
                                 arg.TranslateY(percent = (-0.05, 0.05), name= "1a4_translatey_1"),
                                 arg.OneOf([

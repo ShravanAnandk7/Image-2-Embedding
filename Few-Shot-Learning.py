@@ -30,7 +30,7 @@ os.chdir(BASE_DIR)
 MODEL_DIR       =  os.path.join(BASE_DIR,"models")
 DATASET_DIR     =  os.path.join(BASE_DIR,"datasets")
 BATCH_SIZE      =  10
-NUM_EPOCHS      =  1
+NUM_EPOCHS      =  25
 INPUT_SHAPE     =  299
 EMBEDDING_SIZE  =  32
 LOSS_MARGIN     =  0.4
@@ -42,7 +42,7 @@ AUGMENTATION      = arg.Sequential(
                             [       
                                 arg.OneOf([arg.Fliplr(0.5), arg.Flipud(0.5)]),
                                 arg.Affine(scale = (0.85, 1.05),name="scale"),
-                                arg.Rotate(rotate = (-180,180),name = "1a2_rotate_1"),
+                                arg.Rotate(rotate = (-10,10),name = "1a2_rotate_1"),
                                 arg.TranslateX(percent = (-0.05, 0.05), name= "1a3_translatex_1"),
                                 arg.TranslateY(percent = (-0.05, 0.05), name= "1a4_translatey_1"),
                                 arg.OneOf([
@@ -223,7 +223,7 @@ triplet_model.fit(x=train_gen,
                   workers=1)
 # Save trained model weights
 base.save_weights(os.path.join(BASE_DIR, "models","few-shot.h5"))
-#%% Prediction with trained base model
+#%% Embedding generation with trained base model
 image_path = os.path.join(
              DATASET_DIR,"few-shot-dataset","test","cat","0013.jpg")
 print(image_path)
